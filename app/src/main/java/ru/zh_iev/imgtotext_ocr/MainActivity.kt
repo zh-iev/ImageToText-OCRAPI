@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.provider.MediaStore
 import android.util.Base64
 import android.view.View
@@ -26,6 +27,8 @@ import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.util.*
+import kotlin.concurrent.schedule
 
 class MainActivity : AppCompatActivity() {
     private lateinit var resultLauncher: ActivityResultLauncher<Intent>
@@ -40,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var chiprus: Chip
     private lateinit var chipeng: Chip
     private lateinit var photo: Bitmap
+    private lateinit var resultStr: String
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,7 +58,6 @@ class MainActivity : AppCompatActivity() {
         ivPhoto = findViewById(R.id.ivImage)
         chiprus = findViewById(R.id.chiprus)
         chipeng = findViewById(R.id.chipeng)
-        val textView: TextView = findViewById(R.id.textView)
 
         resultLauncher =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -85,6 +88,7 @@ class MainActivity : AppCompatActivity() {
                 pB.visibility = View.INVISIBLE
                 return@setOnClickListener
             }
+
             val language: String
             if (chipeng.isChecked) {
                 language = "eng"
@@ -99,25 +103,28 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            val url = "https://api.ocr.space/parse/image"
-            val strB64: String = getStringImage(photo)
 
             val requestQueue = Volley.newRequestQueue(this)
+            val strB64: String = getStringImage(photo)
+            val url = "https://api.ocr.space/parse/image"
             val stringRequest = object: StringRequest(Method.POST, url, {
-                response ->
+                    response ->
                 val jsonResp = JSONObject(response)
                 val jsonArray = jsonResp.getJSONArray("ParsedResults")
                 val result = jsonArray.getJSONObject(0)
-                val parsedText = result.getString("ParsedText")
-                val s: String = parsedText
-                Toast.makeText(this@MainActivity, s, Toast.LENGTH_LONG).show()
-                textView.text = s
+                resultStr = result.getString("ParsedText")
+                val intent = Intent(this@MainActivity, ResultActivity::class.java)
+                intent.putExtra("resultString", resultStr)
+                pB.visibility = View.INVISIBLE
+                startActivity(intent)
             }, {
-                error ->
+                    error ->
+                resultStr = "При распознавании текста возникла ошибка"
                 Toast.makeText(this@MainActivity, error.toString(), Toast.LENGTH_SHORT).show()
             }) {
+                val boundary = "AS24adije32MDJHEM9oMaGnKUXtfHq"
                 override fun getBodyContentType(): String {
-                    return "multipart/form-data;boundary=AS24adije32MDJHEM9oMaGnKUXtfHq"
+                    return "multipart/form-data;boundary=${boundary}"
                 }
                 override fun getHeaders(): MutableMap<String, String> {
                     val params = HashMap<String, String>()
@@ -131,17 +138,16 @@ class MainActivity : AppCompatActivity() {
                     params.put("base64image", strB64)
 
                     val map: List<String> = params.map {
-                            (key, value) -> "--AS24adije32MDJHEM9oMaGnKUXtfHq\n" +
+                            (key, value) -> "--${boundary}\n" +
                             "Content-Disposition: form-data; " +
                             "name=\"$key\"\n\n$value\n"
                     }
                     val endResult = "${map.joinToString("")}\n" +
-                            "--AS24adije32MDJHEM9oMaGnKUXtfHq--\n"
+                            "--${boundary}--\n"
                     return endResult.toByteArray()
                 }
             }
             requestQueue.add(stringRequest)
-            pB.visibility = View.INVISIBLE
         }
     }
 

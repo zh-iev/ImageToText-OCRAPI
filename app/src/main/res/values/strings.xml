@@ -6,4 +6,5 @@
     <string name="getOCR">Получить текст</string>
     <string name="setPhoto">Выбрать из галлереи</string>
     <string name="photoresult">photo result</string>
+    <string name="text_from_photo">Текст с фото:</string>
 </resources>
