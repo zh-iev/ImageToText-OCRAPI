@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Img to Text - OCR</string>
+    <string name="takeaphoto">Сделать фото</string>
+    <string name="description">Для получения\n текста с изображения \n сделайте <b>чёткое</b> фото <b> \n в хорошем освещении</b>
+    </string>
+    <string name="getOCR">Получить текст</string>
+    <string name="setPhoto">Выбрать из галлереи</string>
+    <string name="photoresult">photo result</string>
+</resources>
