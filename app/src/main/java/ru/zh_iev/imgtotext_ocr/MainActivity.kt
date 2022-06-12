@@ -8,16 +8,13 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
 import android.provider.MediaStore
-import android.util.Base64
 import android.view.View
 import android.widget.*
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import com.android.volley.toolbox.StringRequest
-import com.android.volley.toolbox.Volley
+import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
 import com.google.android.material.chip.Chip
 import com.karumi.dexter.Dexter
@@ -25,10 +22,6 @@ import com.karumi.dexter.MultiplePermissionsReport
 import com.karumi.dexter.PermissionToken
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener
-import org.json.JSONObject
-import java.io.ByteArrayOutputStream
-import java.util.*
-import kotlin.concurrent.schedule
 
 class MainActivity : AppCompatActivity() {
     private lateinit var resultLauncher: ActivityResultLauncher<Intent>
@@ -43,13 +36,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var chiprus: Chip
     private lateinit var chipeng: Chip
     private lateinit var photo: Bitmap
-    private lateinit var resultStr: String
-
+    private lateinit var sendReqVM: SendReqViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
         val pB: ProgressBar = findViewById(R.id.loadingPB)
 
         btnOpenGallery = findViewById(R.id.btnGallery)
@@ -103,59 +94,15 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-
-            val requestQueue = Volley.newRequestQueue(this)
-            val strB64: String = getStringImage(photo)
-            val url = "https://api.ocr.space/parse/image"
-            val stringRequest = object: StringRequest(Method.POST, url, {
-                    response ->
-                val jsonResp = JSONObject(response)
-                val jsonArray = jsonResp.getJSONArray("ParsedResults")
-                val result = jsonArray.getJSONObject(0)
-                resultStr = result.getString("ParsedText")
+            sendReqVM = ViewModelProvider(this).get(SendReqViewModel::class.java)
+            sendReqVM.init(photo, language)
+            sendReqVM.liveData.observe(this) {
                 val intent = Intent(this@MainActivity, ResultActivity::class.java)
-                intent.putExtra("resultString", resultStr)
+                intent.putExtra("resultString", it)
                 pB.visibility = View.INVISIBLE
                 startActivity(intent)
-            }, {
-                    error ->
-                resultStr = "При распознавании текста возникла ошибка"
-                Toast.makeText(this@MainActivity, error.toString(), Toast.LENGTH_SHORT).show()
-            }) {
-                val boundary = "AS24adije32MDJHEM9oMaGnKUXtfHq"
-                override fun getBodyContentType(): String {
-                    return "multipart/form-data;boundary=${boundary}"
-                }
-                override fun getHeaders(): MutableMap<String, String> {
-                    val params = HashMap<String, String>()
-                    params.put("apikey", "eb4518fbf288957")
-                    return params
-                }
-                override fun getBody(): ByteArray {
-                    val params = HashMap<String, String>()
-
-                    params.put("language", language)
-                    params.put("base64image", strB64)
-
-                    val map: List<String> = params.map {
-                            (key, value) -> "--${boundary}\n" +
-                            "Content-Disposition: form-data; " +
-                            "name=\"$key\"\n\n$value\n"
-                    }
-                    val endResult = "${map.joinToString("")}\n" +
-                            "--${boundary}--\n"
-                    return endResult.toByteArray()
-                }
             }
-            requestQueue.add(stringRequest)
         }
-    }
-
-    private fun getStringImage(bm: Bitmap): String {
-        val ba = ByteArrayOutputStream()
-        bm.compress(Bitmap.CompressFormat.JPEG, 100, ba)
-        val imageByte: ByteArray = ba.toByteArray()
-        return "data:image/jpeg;base64," + Base64.encodeToString(imageByte, Base64.DEFAULT)
     }
 
     private fun openGallery() {
